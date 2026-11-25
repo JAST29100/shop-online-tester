@@ -1,0 +1,24 @@
+# Maven build output
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Eclipse IDE files
+.classpath
+.project
+.settings/
+.metadata/
+bin/
+tmp/
+
+# Selenium & Browser driver logs
+geckodriver.log
+*.log
+
+# Temporary DOM reference folder & OS files
+dom_ref/
+.DS_Store
+Thumbs.db
