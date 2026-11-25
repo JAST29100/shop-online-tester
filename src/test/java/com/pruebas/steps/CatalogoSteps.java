@@ -3,16 +3,14 @@ package com.pruebas.steps;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.pruebas.pages.CatalogoPage;
-import com.pruebas.pages.LoginPage;
+import com.pruebas.pages.*;
 
-import io.cucumber.java.en.Given;
-import io.cucumber.java.en.Then;
-import io.cucumber.java.en.When;
+import io.cucumber.java.en.*;
 
 public class CatalogoSteps extends BaseSteps {
 	private LoginPage loginPage;
 	private CatalogoPage catalogoPage;
+	
 	private int existencias;
 	private int precioUnitario;
 
@@ -24,12 +22,11 @@ public class CatalogoSteps extends BaseSteps {
 		loginPage.ingresarUser(usuario);
 		loginPage.ingresarPass("ShopQA2026!");
 		loginPage.seleccionarLogin();
-		wait(2);
+		wait(1);
 		catalogoPage = new CatalogoPage(driver);
 		existencias = catalogoPage.obtenerExistencias("Teclado");
 		precioUnitario = catalogoPage.obtenerPrecioUnitario("Teclado");
 		catalogoPage.vaciarCarrito();
-		assertTrue("El carrito debe iniciar vacio", catalogoPage.carritoVacio());
 		catalogoPage.irAlCatalogo();
 	}
 

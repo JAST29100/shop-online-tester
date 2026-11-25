@@ -10,7 +10,7 @@ public class BaseSteps {
         driver = new FirefoxDriver();
     }
 
-    void stopWebDriver() {
+    protected void stopWebDriver() {
         driver.quit();
     }
 

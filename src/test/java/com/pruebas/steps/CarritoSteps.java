@@ -1,36 +1,35 @@
 package com.pruebas.steps;
 
+import com.pruebas.pages.*;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import org.openqa.selenium.By;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.pruebas.pages.CarritoPage;
-import com.pruebas.pages.CatalogoPage;
-import com.pruebas.pages.LoginPage;
-
-import io.cucumber.java.en.Given;
-import io.cucumber.java.en.Then;
-import io.cucumber.java.en.When;
+import io.cucumber.java.en.*;
 
 public class CarritoSteps extends BaseSteps {
-	private LoginPage loginPage;
-	private CatalogoPage catalogo;
-	private CarritoPage carrito;
-	private Map<String, Integer> precios = new LinkedHashMap<String, Integer>();
-	private Map<String, Integer> stocks = new LinkedHashMap<String, Integer>();
-	private String productoActual;
-	private int cantidadAnterior;
-	private int subtotalAnterior;
-	private int pedidosAntes;
-	private int subtotalAntesConfirmar;
-	private int totalAntesConfirmar;
+	LoginPage loginPage;
+	CatalogoPage catalogo;
+	CarritoPage carrito;
+	
+	String productoActual;
+	int cantidadAnterior;
+	int subtotalAnterior;
+	int tecladoPresente;
+	int mousePresente;
+	int monitorPresente;
+	int cantidadTeclado;
+	int cantidadMouse;
+	int cantidadMonitor;
+	int subtotalTeclado;
+	int subtotalMouse;
+	int subtotalMonitor;
+	int pedidosAntes;
+	int subtotalAntesConfirmar;
+	int totalAntesConfirmar;
 
 	@Given("inicia una sesion de carrito con {string} y carrito vacio")
 	public void iniciarSesionConCarritoVacio(String usuario) {
@@ -40,10 +39,9 @@ public class CarritoSteps extends BaseSteps {
 		loginPage.ingresarUser(usuario);
 		loginPage.ingresarPass("ShopQA2026!");
 		loginPage.seleccionarLogin();
-		new WebDriverWait(driver, 10).until(ExpectedConditions.urlContains("/catalog"));
+		wait(2);
 		catalogo = new CatalogoPage(driver);
 		carrito = new CarritoPage(driver);
-		leerCatalogo();
 		catalogo.vaciarCarrito();
 		assertTrue("El carrito debe iniciar vacio", carritoVacioEnRutaCarrito());
 		catalogo.irAlCatalogo();
@@ -53,12 +51,11 @@ public class CarritoSteps extends BaseSteps {
 	public void cambiarCuenta(String usuario) {
 		catalogo.irAlCatalogo();
 		driver.findElement(By.cssSelector("form[action='/api/auth/logout'] button")).click();
-		new WebDriverWait(driver, 10).until(ExpectedConditions.urlToBe("https://shoponline-app.vercel.app/"));
+		wait(1);
 		loginPage.ingresarUser(usuario);
 		loginPage.ingresarPass("ShopQA2026!");
 		loginPage.seleccionarLogin();
-		new WebDriverWait(driver, 10).until(ExpectedConditions.urlContains("/catalog"));
-		leerCatalogo();
+		wait(2);
 		catalogo.vaciarCarrito();
 		assertTrue(carritoVacioEnRutaCarrito());
 		catalogo.irAlCatalogo();
@@ -80,14 +77,14 @@ public class CarritoSteps extends BaseSteps {
 	@When("cambia la cantidad de {string} a una unidad mas que sus existencias y pulsa actualizar")
 	public void cambiarAStockMasUno(String producto) {
 		capturarCantidadYSubtotal(producto);
-		carrito.cambiarCantidad(producto, String.valueOf(stocks.get(producto) + 1));
+		carrito.cambiarCantidad(producto, String.valueOf(carrito.obtenerStock(producto) + 1));
 		productoActual = producto;
 	}
 
 	@When("cambia la cantidad de {string} a todas sus existencias y pulsa actualizar")
 	public void cambiarATodasExistencias(String producto) {
 		capturarCantidadYSubtotal(producto);
-		carrito.cambiarCantidad(producto, String.valueOf(stocks.get(producto)));
+		carrito.cambiarCantidad(producto, String.valueOf(carrito.obtenerStock(producto)));
 		productoActual = producto;
 	}
 
@@ -99,13 +96,13 @@ public class CarritoSteps extends BaseSteps {
 
 	@Then("el carrito rechaza la cantidad por superar las existencias")
 	public void validarErrorStock() {
-		assertEquals("No hay existencias suficientes. Disponibles: " + stocks.get(productoActual) + ".", carrito.obtenerAlerta());
+		assertEquals("No hay existencias suficientes. Disponibles: " + carrito.obtenerStock(productoActual) + ".", carrito.obtenerAlerta());
 	}
 
 	@Then("conserva la cantidad y subtotal previos de {string}")
 	public void conservarValores(String producto) {
 		assertEquals(cantidadAnterior, carrito.obtenerUnidadesResumen());
-		assertEquals(cantidadAnterior * precios.get(producto), carrito.subtotalFila(producto));
+		assertEquals(cantidadAnterior * carrito.obtenerPrecio(producto), carrito.subtotalFila(producto));
 		assertEquals(subtotalAnterior, carrito.subtotalFila(producto));
 		assertEquals(subtotalAnterior, carrito.subtotalResumen());
 		stopWebDriver();
@@ -128,7 +125,7 @@ public class CarritoSteps extends BaseSteps {
 		carrito.irPedidos();
 		pedidosAntes = carrito.cantidadPedidos();
 		driver.navigate().back();
-		carrito.esperarCarrito();
+		wait(1);
 		subtotalAntesConfirmar = carrito.subtotalResumen();
 		totalAntesConfirmar = carrito.totalResumen();
 		carrito.confirmar();
@@ -146,16 +143,14 @@ public class CarritoSteps extends BaseSteps {
 
 	@Then("no se registra pedido y se conserva el carrito")
 	public void noPedidoYCarritoConservado() {
-		Map<String, Integer> cantidades = leerCantidadesCarrito();
-		Map<String, Integer> subtotales = leerSubtotalesCarrito();
+		guardarEstadoCarrito();
 		carrito.irPedidos();
 		assertEquals(pedidosAntes, carrito.cantidadPedidos());
 		driver.navigate().back();
-		carrito.esperarCarrito();
-		for (String producto : cantidades.keySet()) {
-			assertEquals(cantidades.get(producto).intValue(), carrito.obtenerCantidadFila(producto));
-			assertEquals(subtotales.get(producto).intValue(), carrito.subtotalFila(producto));
-		}
+		wait(1);
+		validarFilaConservada("Teclado", tecladoPresente, cantidadTeclado, subtotalTeclado);
+		validarFilaConservada("Mouse", mousePresente, cantidadMouse, subtotalMouse);
+		validarFilaConservada("Monitor", monitorPresente, cantidadMonitor, subtotalMonitor);
 		stopWebDriver();
 	}
 
@@ -195,7 +190,7 @@ public class CarritoSteps extends BaseSteps {
 		carrito.irPedidos();
 		pedidosAntes = carrito.cantidadPedidos();
 		driver.navigate().back();
-		carrito.esperarCarrito();
+		wait(1);
 		carrito.eliminar(producto);
 	}
 
@@ -223,7 +218,7 @@ public class CarritoSteps extends BaseSteps {
 
 	@Then("el producto {string} queda con cantidad igual a sus existencias y subtotal recalculado")
 	public void validaCantidadIgualExistencias(String producto) {
-		validaCantidadActualizada(producto, stocks.get(producto));
+		validaCantidadActualizada(producto, carrito.obtenerStock(producto));
 	}
 
 	@When("agrega dos productos distintos al carrito desde el catalogo")
@@ -247,7 +242,7 @@ public class CarritoSteps extends BaseSteps {
 		assertEquals(1, carrito.nombresFilas().size());
 		assertEquals(producto, carrito.nombresFilas().get(0));
 		assertEquals(4, carrito.obtenerCantidadFila(producto));
-		assertEquals(4 * precios.get(producto), carrito.subtotalFila(producto));
+		assertEquals(4 * carrito.obtenerPrecio(producto), carrito.subtotalFila(producto));
 		stopWebDriver();
 	}
 
@@ -257,51 +252,54 @@ public class CarritoSteps extends BaseSteps {
 		catalogo.agregar(producto);
 		assertEquals("Producto agregado correctamente.", catalogo.obtenerAviso());
 		catalogo.irAlCarrito();
-		carrito.esperarCarrito();
+		wait(1);
 	}
 
 	private void capturarCantidadYSubtotal(String producto) {
 		productoActual = producto;
 		cantidadAnterior = carrito.obtenerCantidadFila(producto);
 		subtotalAnterior = carrito.subtotalFila(producto);
-		stocks.put(producto, carrito.obtenerStock(producto));
-		precios.put(producto, carrito.obtenerPrecio(producto));
 	}
 
 	private void validaCantidadActualizada(String producto, int cantidadEsperada) {
 		wait(1);
 		assertEquals(cantidadEsperada, carrito.obtenerCantidadFila(producto));
 		assertEquals(cantidadEsperada, carrito.obtenerUnidadesResumen());
-		assertEquals(cantidadEsperada * precios.get(producto), carrito.subtotalFila(producto));
-		assertEquals(cantidadEsperada * precios.get(producto), carrito.subtotalResumen());
+		assertEquals(cantidadEsperada * carrito.obtenerPrecio(producto), carrito.subtotalFila(producto));
+		assertEquals(cantidadEsperada * carrito.obtenerPrecio(producto), carrito.subtotalResumen());
 		stopWebDriver();
 	}
 
-	private void leerCatalogo() {
-		precios.clear(); stocks.clear();
-		precios.put("Teclado", catalogo.obtenerPrecioUnitario("Teclado"));
-		precios.put("Mouse", catalogo.obtenerPrecioUnitario("Mouse"));
-		precios.put("Monitor", catalogo.obtenerPrecioUnitario("Monitor"));
-		stocks.put("Teclado", catalogo.obtenerExistencias("Teclado"));
-		stocks.put("Mouse", catalogo.obtenerExistencias("Mouse"));
-		stocks.put("Monitor", catalogo.obtenerExistencias("Monitor"));
-	}
-
 	private boolean carritoVacioEnRutaCarrito() {
-		carrito.esperarCarrito();
+		wait(1);
 		return carrito.carritoVacio();
 	}
 
-	private Map<String, Integer> leerCantidadesCarrito() {
-		Map<String, Integer> datos = new LinkedHashMap<String, Integer>();
-		for (String producto : carrito.nombresFilas()) datos.put(producto, carrito.obtenerCantidadFila(producto));
-		return datos;
+	private void guardarEstadoCarrito() {
+		tecladoPresente = carrito.nombresFilas().contains("Teclado") ? 1 : 0;
+		mousePresente = carrito.nombresFilas().contains("Mouse") ? 1 : 0;
+		monitorPresente = carrito.nombresFilas().contains("Monitor") ? 1 : 0;
+		if (tecladoPresente == 1) {
+			cantidadTeclado = carrito.obtenerCantidadFila("Teclado");
+			subtotalTeclado = carrito.subtotalFila("Teclado");
+		}
+		if (mousePresente == 1) {
+			cantidadMouse = carrito.obtenerCantidadFila("Mouse");
+			subtotalMouse = carrito.subtotalFila("Mouse");
+		}
+		if (monitorPresente == 1) {
+			cantidadMonitor = carrito.obtenerCantidadFila("Monitor");
+			subtotalMonitor = carrito.subtotalFila("Monitor");
+		}
 	}
 
-	private Map<String, Integer> leerSubtotalesCarrito() {
-		Map<String, Integer> datos = new LinkedHashMap<String, Integer>();
-		for (String producto : carrito.nombresFilas()) datos.put(producto, carrito.subtotalFila(producto));
-		return datos;
+	private void validarFilaConservada(String producto, int estabaPresente, int cantidad, int subtotal) {
+		if (estabaPresente == 1) {
+			assertEquals(cantidad, carrito.obtenerCantidadFila(producto));
+			assertEquals(subtotal, carrito.subtotalFila(producto));
+		} else {
+			assertFalse(carrito.nombresFilas().contains(producto));
+		}
 	}
 
 	private void agregarCantidades(int teclados, int mouse, int monitores) {
@@ -314,35 +312,38 @@ public class CarritoSteps extends BaseSteps {
 	private void prepararCarritoMenorAlMinimo() {
 		int teclados = 19;
 		int mouse = 1;
-		assertTrue(stocks.get("Teclado") >= teclados && stocks.get("Mouse") >= mouse);
-		assertTrue(teclados * precios.get("Teclado") + mouse * precios.get("Mouse") < 1000000);
+		int precioTeclado = catalogo.obtenerPrecioUnitario("Teclado");
+		int precioMouse = catalogo.obtenerPrecioUnitario("Mouse");
+		assertTrue(catalogo.obtenerExistencias("Teclado") >= teclados && catalogo.obtenerExistencias("Mouse") >= mouse);
+		assertTrue(teclados * precioTeclado + mouse * precioMouse < 1000000);
 		agregarCantidades(teclados, mouse, 0);
 	}
 
 	private void prepararCarritoExactoUnMillon() {
-		int precioTeclado = precios.get("Teclado");
+		int precioTeclado = catalogo.obtenerPrecioUnitario("Teclado");
 		int teclados = 1000000 / precioTeclado;
 		assertEquals(0, 1000000 % precioTeclado);
-		assertTrue(teclados >= 20 && teclados <= stocks.get("Teclado"));
+		assertTrue(teclados >= 20 && teclados <= catalogo.obtenerExistencias("Teclado"));
 		agregarCantidades(teclados, 0, 0);
 	}
 
 	private void prepararCarritoDiecinueveUnidades() {
-		int precioTeclado = precios.get("Teclado");
-		int diferenciaPrecio = precios.get("Monitor") - precioTeclado;
+		int precioTeclado = catalogo.obtenerPrecioUnitario("Teclado");
+		int precioMonitor = catalogo.obtenerPrecioUnitario("Monitor");
+		int diferenciaPrecio = precioMonitor - precioTeclado;
 		int subtotalBase = 19 * precioTeclado;
 		assertTrue(diferenciaPrecio > 0);
 		int monitores = subtotalBase >= 1000000 ? 0
 				: (1000000 - subtotalBase + diferenciaPrecio - 1) / diferenciaPrecio;
-		assertTrue(monitores <= stocks.get("Monitor") && monitores <= 19);
+		assertTrue(monitores <= catalogo.obtenerExistencias("Monitor") && monitores <= 19);
 		int teclados = 19 - monitores;
-		assertTrue(teclados <= stocks.get("Teclado"));
-		assertTrue(teclados * precioTeclado + monitores * precios.get("Monitor") >= 1000000);
+		assertTrue(teclados <= catalogo.obtenerExistencias("Teclado"));
+		assertTrue(teclados * precioTeclado + monitores * precioMonitor >= 1000000);
 		agregarCantidades(teclados, 0, monitores);
 	}
 
 	private void prepararCarritoNoElegible() {
-		assertTrue(stocks.get("Teclado") > 0 && precios.get("Teclado") < 1000000);
+		assertTrue(catalogo.obtenerExistencias("Teclado") > 0 && catalogo.obtenerPrecioUnitario("Teclado") < 1000000);
 		agregarCantidades(1, 0, 0);
 	}
 }

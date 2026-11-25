@@ -2,24 +2,18 @@ package com.pruebas.pages;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class CarritoPage {
-	private final WebDriver driver;
-	private final By filas = By.cssSelector("main > div > div > section article");
-	private final By alerta = By.cssSelector("div[role='alert']");
+	WebDriver driver;
+	
+	By filas = By.cssSelector("main > div > div > section article");
+	By alerta = By.cssSelector("div[role='alert']");
 
 	public CarritoPage(WebDriver driver) {
 		this.driver = driver;
-	}
-
-	public void esperarCarrito() {
-		new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("main > div > div > section")));
 	}
 
 	public void cambiarCantidad(String producto, String cantidad) {
@@ -28,15 +22,17 @@ public class CarritoPage {
 		input.clear();
 		input.sendKeys(cantidad);
 		fila.findElement(By.xpath(".//button[normalize-space()='Actualizar']")).click();
+		wait(1);
 	}
 
 	public void eliminar(String producto) {
 		fila(producto).findElement(By.xpath(".//button[normalize-space()='Eliminar']")).click();
-		new WebDriverWait(driver, 10).until(_ -> buscarFila(producto) == null);
+		wait(1);
 	}
 
 	public String obtenerAlerta() {
-		return new WebDriverWait(driver, 10).until(ExpectedConditions.visibilityOfElementLocated(alerta)).getText().trim();
+		wait(1);
+		return driver.findElement(alerta).getText().trim();
 	}
 
 	public int obtenerCantidadFila(String producto) {
@@ -101,23 +97,15 @@ public class CarritoPage {
 	}
 
 	public void confirmar() {
-		String alertaAnterior = "";
-		List<WebElement> alertasVisibles = driver.findElements(alerta);
-		if (!alertasVisibles.isEmpty() && alertasVisibles.get(0).isDisplayed()) alertaAnterior = alertasVisibles.get(0).getText().trim();
-		final String textoAnterior = alertaAnterior;
 		driver.findElement(By.xpath("//button[normalize-space()='Confirmar pedido']")).click();
-		new WebDriverWait(driver, 10).until(d -> {
-			if (d.getCurrentUrl().contains("/orders")) return true;
-			List<WebElement> alertas = d.findElements(alerta);
-			return !alertas.isEmpty() && alertas.get(0).isDisplayed() && !alertas.get(0).getText().trim().equals(textoAnterior);
-		});
+		wait(2);
 	}
 
 	public String url() { return driver.getCurrentUrl(); }
 
 	public void irPedidos() {
 		driver.findElement(By.cssSelector("a[href='/orders']")).click();
-		new WebDriverWait(driver, 10).until(ExpectedConditions.urlContains("/orders"));
+		wait(2);
 	}
 
 	public int cantidadPedidos() {
@@ -157,4 +145,12 @@ public class CarritoPage {
 	private int numero(String texto) { return Integer.parseInt(soloDigitos(texto)); }
 
 	private String soloDigitos(String texto) { return texto.replaceAll("[^0-9]", ""); }
+
+	private void wait(int seconds) {
+		try {
+			Thread.sleep(seconds * 1000L);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
 }
