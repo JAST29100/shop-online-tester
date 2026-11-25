@@ -30,14 +30,6 @@ public class CarritoPage {
 		fila.findElement(By.xpath(".//button[normalize-space()='Actualizar']")).click();
 	}
 
-	public void actualizarA(String producto, int cantidad) {
-		cambiarCantidad(producto, String.valueOf(cantidad));
-	}
-
-	public void cambiarAExistencias(String producto, int stock) {
-		cambiarCantidad(producto, String.valueOf(stock));
-	}
-
 	public void eliminar(String producto) {
 		fila(producto).findElement(By.xpath(".//button[normalize-space()='Eliminar']")).click();
 		new WebDriverWait(driver, 10).until(_ -> buscarFila(producto) == null);
@@ -47,10 +39,8 @@ public class CarritoPage {
 		return new WebDriverWait(driver, 10).until(ExpectedConditions.visibilityOfElementLocated(alerta)).getText().trim();
 	}
 
-	public int[] cantidadYSubtotal(String producto) {
-		WebElement fila = fila(producto);
-		int cantidad = Integer.parseInt(fila.findElement(By.cssSelector("input[type='number']")).getAttribute("value"));
-		return new int[] { cantidad, subtotalFila(producto) };
+	public int obtenerCantidadFila(String producto) {
+		return Integer.parseInt(fila(producto).findElement(By.cssSelector("input[type='number']")).getAttribute("value"));
 	}
 
 	public int subtotalFila(String producto) {
@@ -81,25 +71,19 @@ public class CarritoPage {
 	}
 
 	public int subtotalResumen() {
-		return numero(valorResumen("Subtotal"));
+		return valorResumen("Subtotal");
 	}
 
 	public int totalResumen() {
-		return numero(valorResumen("Total a pagar"));
-	}
-
-	public int unidadesResumen() {
-		return Integer.parseInt(valorResumen("Unidades").replaceAll("[^0-9]", ""));
+		return valorResumen("Total a pagar");
 	}
 
 	public int obtenerUnidadesResumen() {
-		String unidades = bloqueResumen()
-				.findElement(By.xpath(".//span[normalize-space()='Unidades']/following-sibling::strong[1]"))
-				.getText();
-		return Integer.parseInt(unidades.trim());
+		return valorResumen("Unidades");
 	}
 
 	public String textoVisible() { return driver.findElement(By.cssSelector("main")).getText(); }
+	public String textoVisibleNumerico() { return soloDigitos(textoVisible()); }
 
 	public String textoBeneficio() {
 		List<WebElement> textos = bloqueResumen().findElements(By.cssSelector("p"));
@@ -147,10 +131,10 @@ public class CarritoPage {
 		return numero(ultimo.findElement(By.xpath(".//p[normalize-space()='Total del pedido']/following-sibling::p[1]")).getText());
 	}
 
-	private String valorResumen(String etiqueta) {
+	private int valorResumen(String etiqueta) {
 		WebElement valor = bloqueResumen().findElement(By.xpath(
 				".//div[span[normalize-space()='" + etiqueta + "']]/strong"));
-		return valor.getText().replace("\u00a0", " ").replaceAll("[^0-9]", "");
+		return numero(valor.getText());
 	}
 
 	private WebElement bloqueResumen() {
@@ -170,5 +154,7 @@ public class CarritoPage {
 		return null;
 	}
 
-	private int numero(String texto) { return Integer.parseInt(texto.replace("\u00a0", " ").replaceAll("[^0-9]", "")); }
+	private int numero(String texto) { return Integer.parseInt(soloDigitos(texto)); }
+
+	private String soloDigitos(String texto) { return texto.replaceAll("[^0-9]", ""); }
 }

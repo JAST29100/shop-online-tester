@@ -15,7 +15,6 @@ public class CatalogoSteps extends BaseSteps {
 	private CatalogoPage catalogoPage;
 	private int existencias;
 	private int precioUnitario;
-	private String productoSeleccionado;
 
 	@Given("inicia sesion con {string} y el carrito esta vacio")
 	public void iniciaSesionConCarritoVacio(String usuario) {
@@ -27,9 +26,8 @@ public class CatalogoSteps extends BaseSteps {
 		loginPage.seleccionarLogin();
 		wait(2);
 		catalogoPage = new CatalogoPage(driver);
-		productoSeleccionado = "Teclado";
-		existencias = catalogoPage.obtenerExistencias(productoSeleccionado);
-		precioUnitario = catalogoPage.obtenerPrecioUnitario(productoSeleccionado);
+		existencias = catalogoPage.obtenerExistencias("Teclado");
+		precioUnitario = catalogoPage.obtenerPrecioUnitario("Teclado");
 		catalogoPage.vaciarCarrito();
 		assertTrue("El carrito debe iniciar vacio", catalogoPage.carritoVacio());
 		catalogoPage.irAlCatalogo();
@@ -59,7 +57,7 @@ public class CatalogoSteps extends BaseSteps {
 	@When("agrega desde el catalogo una unidad mas que las existencias restantes de {string}")
 	public void agregaUnaMasDeExistenciasAcumuladas(String producto) {
 		seleccionarProducto(producto);
-		catalogoPage.ingresarCantidad(producto, String.valueOf(existencias - 2 + 1));
+		catalogoPage.ingresarCantidad(producto, String.valueOf(existencias - 1));
 		catalogoPage.agregar(producto);
 	}
 
@@ -104,14 +102,12 @@ public class CatalogoSteps extends BaseSteps {
 	}
 
 	private void validaCantidadYSubtotal(String producto, int cantidadEsperada) {
-		int[] valores = catalogoPage.obtenerCantidadYSubtotal(producto);
-		assertEquals(cantidadEsperada, valores[0]);
-		assertEquals(cantidadEsperada * precioUnitario, valores[1]);
+		assertEquals(cantidadEsperada, catalogoPage.obtenerCantidadFila(producto));
+		assertEquals(cantidadEsperada * precioUnitario, catalogoPage.obtenerSubtotalFila(producto));
 		stopWebDriver();
 	}
 
 	private void seleccionarProducto(String producto) {
-		productoSeleccionado = producto;
 		existencias = catalogoPage.obtenerExistencias(producto);
 		precioUnitario = catalogoPage.obtenerPrecioUnitario(producto);
 	}

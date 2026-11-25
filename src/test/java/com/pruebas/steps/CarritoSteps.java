@@ -23,8 +23,8 @@ public class CarritoSteps extends BaseSteps {
 	private LoginPage loginPage;
 	private CatalogoPage catalogo;
 	private CarritoPage carrito;
-	private final Map<String, Integer> precios = new LinkedHashMap<String, Integer>();
-	private final Map<String, Integer> stocks = new LinkedHashMap<String, Integer>();
+	private Map<String, Integer> precios = new LinkedHashMap<String, Integer>();
+	private Map<String, Integer> stocks = new LinkedHashMap<String, Integer>();
 	private String productoActual;
 	private int cantidadAnterior;
 	private int subtotalAnterior;
@@ -87,7 +87,7 @@ public class CarritoSteps extends BaseSteps {
 	@When("cambia la cantidad de {string} a todas sus existencias y pulsa actualizar")
 	public void cambiarATodasExistencias(String producto) {
 		capturarCantidadYSubtotal(producto);
-		carrito.cambiarAExistencias(producto, stocks.get(producto));
+		carrito.cambiarCantidad(producto, String.valueOf(stocks.get(producto)));
 		productoActual = producto;
 	}
 
@@ -112,16 +112,16 @@ public class CarritoSteps extends BaseSteps {
 	}
 
 	@When("prepara el carrito con al menos veinte unidades y subtotal maximo inferior al minimo")
-	public void preparaSubtotalMenor() { prepararPedido("below"); }
+	public void preparaSubtotalMenor() { prepararCarritoMenorAlMinimo(); }
 
 	@When("prepara el carrito con al menos veinte unidades y subtotal exacto de un millon")
-	public void preparaSubtotalExacto() { prepararPedido("exact"); }
+	public void preparaSubtotalExacto() { prepararCarritoExactoUnMillon(); }
 
 	@When("prepara el carrito con exactamente diecinueve unidades y subtotal minimo alcanzado")
-	public void preparaDiecinueveUnidades() { prepararPedido("nineteen"); }
+	public void preparaDiecinueveUnidades() { prepararCarritoDiecinueveUnidades(); }
 
 	@When("prepara el carrito con menos de veinte unidades y subtotal inferior al minimo")
-	public void preparaNoElegible() { prepararPedido("small"); }
+	public void preparaNoElegible() { prepararCarritoNoElegible(); }
 
 	@When("confirma el pedido del carrito")
 	public void confirmaPedido() {
@@ -146,15 +146,15 @@ public class CarritoSteps extends BaseSteps {
 
 	@Then("no se registra pedido y se conserva el carrito")
 	public void noPedidoYCarritoConservado() {
-		Map<String, int[]> esperado = leerCantidadesCarrito();
+		Map<String, Integer> cantidades = leerCantidadesCarrito();
+		Map<String, Integer> subtotales = leerSubtotalesCarrito();
 		carrito.irPedidos();
 		assertEquals(pedidosAntes, carrito.cantidadPedidos());
 		driver.navigate().back();
 		carrito.esperarCarrito();
-		for (Map.Entry<String, int[]> item : esperado.entrySet()) {
-			int[] actual = carrito.cantidadYSubtotal(item.getKey());
-			assertEquals(item.getValue()[0], actual[0]);
-			assertEquals(item.getValue()[1], actual[1]);
+		for (String producto : cantidades.keySet()) {
+			assertEquals(cantidades.get(producto).intValue(), carrito.obtenerCantidadFila(producto));
+			assertEquals(subtotales.get(producto).intValue(), carrito.subtotalFila(producto));
 		}
 		stopWebDriver();
 	}
@@ -174,16 +174,10 @@ public class CarritoSteps extends BaseSteps {
 		assertEquals(1000000, subtotalAntesConfirmar);
 		assertEquals(Integer.parseInt(descuento), subtotalAntesConfirmar - totalAntesConfirmar);
 		assertEquals(Integer.parseInt(total), totalAntesConfirmar);
-		if (carrito.url().contains("/cart")) {
-			String confirmacion = carrito.textoVisible().replaceAll("[^0-9]", "");
-			assertTrue(confirmacion.contains("1000000"));
-			assertTrue(confirmacion.contains(descuento));
-			assertTrue(confirmacion.contains(total));
-		} else {
-			String confirmacion = carrito.textoVisible().replaceAll("[^0-9]", "");
-			assertTrue(confirmacion.contains(descuento));
-			assertTrue(confirmacion.contains(total));
-		}
+		String confirmacion = carrito.textoVisibleNumerico();
+		if (carrito.url().contains("/cart")) assertTrue(confirmacion.contains("1000000"));
+		assertTrue(confirmacion.contains(descuento));
+		assertTrue(confirmacion.contains(total));
 		stopWebDriver();
 	}
 
@@ -243,7 +237,7 @@ public class CarritoSteps extends BaseSteps {
 	public void actualizarYEliiminar(String producto, String productoEliminar) {
 		catalogo.irAlCarrito();
 		capturarCantidadYSubtotal(producto);
-		carrito.actualizarA(producto, 4);
+		carrito.cambiarCantidad(producto, "4");
 		assertEquals("Cantidad modificada correctamente.", carrito.obtenerAlerta());
 		carrito.eliminar(productoEliminar);
 	}
@@ -252,9 +246,8 @@ public class CarritoSteps extends BaseSteps {
 	public void validarE2E(String producto) {
 		assertEquals(1, carrito.nombresFilas().size());
 		assertEquals(producto, carrito.nombresFilas().get(0));
-		int[] valores = carrito.cantidadYSubtotal(producto);
-		assertEquals(4, valores[0]);
-		assertEquals(4 * precios.get(producto), valores[1]);
+		assertEquals(4, carrito.obtenerCantidadFila(producto));
+		assertEquals(4 * precios.get(producto), carrito.subtotalFila(producto));
 		stopWebDriver();
 	}
 
@@ -269,29 +262,29 @@ public class CarritoSteps extends BaseSteps {
 
 	private void capturarCantidadYSubtotal(String producto) {
 		productoActual = producto;
-		int[] valores = carrito.cantidadYSubtotal(producto);
-		cantidadAnterior = valores[0];
-		subtotalAnterior = valores[1];
+		cantidadAnterior = carrito.obtenerCantidadFila(producto);
+		subtotalAnterior = carrito.subtotalFila(producto);
 		stocks.put(producto, carrito.obtenerStock(producto));
 		precios.put(producto, carrito.obtenerPrecio(producto));
 	}
 
 	private void validaCantidadActualizada(String producto, int cantidadEsperada) {
-		int[] valores = carrito.cantidadYSubtotal(producto);
 		wait(1);
-		assertEquals(cantidadEsperada, valores[0]);
+		assertEquals(cantidadEsperada, carrito.obtenerCantidadFila(producto));
 		assertEquals(cantidadEsperada, carrito.obtenerUnidadesResumen());
-		assertEquals(cantidadEsperada * precios.get(producto), valores[1]);
+		assertEquals(cantidadEsperada * precios.get(producto), carrito.subtotalFila(producto));
 		assertEquals(cantidadEsperada * precios.get(producto), carrito.subtotalResumen());
 		stopWebDriver();
 	}
 
 	private void leerCatalogo() {
 		precios.clear(); stocks.clear();
-		for (String producto : new String[] { "Teclado", "Mouse", "Monitor" }) {
-			precios.put(producto, catalogo.obtenerPrecioUnitario(producto));
-			stocks.put(producto, catalogo.obtenerExistencias(producto));
-		}
+		precios.put("Teclado", catalogo.obtenerPrecioUnitario("Teclado"));
+		precios.put("Mouse", catalogo.obtenerPrecioUnitario("Mouse"));
+		precios.put("Monitor", catalogo.obtenerPrecioUnitario("Monitor"));
+		stocks.put("Teclado", catalogo.obtenerExistencias("Teclado"));
+		stocks.put("Mouse", catalogo.obtenerExistencias("Mouse"));
+		stocks.put("Monitor", catalogo.obtenerExistencias("Monitor"));
 	}
 
 	private boolean carritoVacioEnRutaCarrito() {
@@ -299,55 +292,57 @@ public class CarritoSteps extends BaseSteps {
 		return carrito.carritoVacio();
 	}
 
-	private Map<String, int[]> leerCantidadesCarrito() {
-		Map<String, int[]> datos = new LinkedHashMap<String, int[]>();
-		for (String producto : carrito.nombresFilas()) datos.put(producto, carrito.cantidadYSubtotal(producto));
+	private Map<String, Integer> leerCantidadesCarrito() {
+		Map<String, Integer> datos = new LinkedHashMap<String, Integer>();
+		for (String producto : carrito.nombresFilas()) datos.put(producto, carrito.obtenerCantidadFila(producto));
 		return datos;
 	}
 
-	private void prepararPedido(String tipo) {
-		int[] cantidades = calcularCantidades(tipo);
-		String[] productos = { "Teclado", "Mouse", "Monitor" };
-		for (int i = 0; i < cantidades.length; i++) if (cantidades[i] > 0) agregarAlCarrito(productos[i], cantidades[i]);
+	private Map<String, Integer> leerSubtotalesCarrito() {
+		Map<String, Integer> datos = new LinkedHashMap<String, Integer>();
+		for (String producto : carrito.nombresFilas()) datos.put(producto, carrito.subtotalFila(producto));
+		return datos;
+	}
+
+	private void agregarCantidades(int teclados, int mouse, int monitores) {
+		if (teclados > 0) agregarAlCarrito("Teclado", teclados);
+		if (mouse > 0) agregarAlCarrito("Mouse", mouse);
+		if (monitores > 0) agregarAlCarrito("Monitor", monitores);
 		assertTrue("La preparacion debe incluir productos", carrito.nombresFilas().size() > 0);
 	}
 
-	private int[] calcularCantidades(String tipo) {
-		String[] nombres = { "Teclado", "Mouse", "Monitor" };
-		int[] p = { precios.get(nombres[0]), precios.get(nombres[1]), precios.get(nombres[2]) };
-		int[] s = { stocks.get(nombres[0]), stocks.get(nombres[1]), stocks.get(nombres[2]) };
-		int[] mejor = null;
-		long mejorValor = tipo.equals("below") ? -1 : Long.MAX_VALUE;
-		int max0 = Math.min(s[0], 1000000 / p[0]);
-		int max1 = Math.min(s[1], 1000000 / p[1]);
-		if (tipo.equals("small")) { max0 = Math.min(s[0], 19); max1 = Math.min(s[1], 19); }
-		for (int a = 0; a <= max0; a++) for (int b = 0; b <= max1; b++) {
-			int c;
-			if (tipo.equals("exact")) {
-				int restante = 1000000 - a * p[0] - b * p[1];
-				if (restante < 0 || restante % p[2] != 0) continue;
-				c = restante / p[2];
-			} else if (tipo.equals("nineteen")) {
-				c = 19 - a - b;
-			} else if (tipo.equals("small")) {
-				if (a + b >= 19) continue;
-				c = Math.min(s[2], Math.min(18 - a - b, (999999 - a * p[0] - b * p[1]) / p[2]));
-			} else {
-				c = Math.min(s[2], (999999 - a * p[0] - b * p[1]) / p[2]);
-			}
-			if (c < 0 || c > s[2]) continue;
-			int unidades = a + b + c;
-			long subtotal = (long) a * p[0] + (long) b * p[1] + (long) c * p[2];
-			boolean valido = tipo.equals("exact") ? subtotal == 1000000 && unidades >= 20
-					: tipo.equals("below") ? subtotal < 1000000 && unidades >= 20
-					: tipo.equals("nineteen") ? unidades == 19 && subtotal >= 1000000
-					: unidades > 0 && unidades < 20 && subtotal < 1000000;
-			if (!valido) continue;
-			if (tipo.equals("below") ? subtotal > mejorValor : subtotal < mejorValor) {
-				mejorValor = subtotal; mejor = new int[] { a, b, c };
-			}
-		}
-		if (mejor == null) throw new AssertionError("No se encontro combinacion con el inventario visible para " + tipo);
-		return mejor;
+	private void prepararCarritoMenorAlMinimo() {
+		int teclados = 19;
+		int mouse = 1;
+		assertTrue(stocks.get("Teclado") >= teclados && stocks.get("Mouse") >= mouse);
+		assertTrue(teclados * precios.get("Teclado") + mouse * precios.get("Mouse") < 1000000);
+		agregarCantidades(teclados, mouse, 0);
+	}
+
+	private void prepararCarritoExactoUnMillon() {
+		int precioTeclado = precios.get("Teclado");
+		int teclados = 1000000 / precioTeclado;
+		assertEquals(0, 1000000 % precioTeclado);
+		assertTrue(teclados >= 20 && teclados <= stocks.get("Teclado"));
+		agregarCantidades(teclados, 0, 0);
+	}
+
+	private void prepararCarritoDiecinueveUnidades() {
+		int precioTeclado = precios.get("Teclado");
+		int diferenciaPrecio = precios.get("Monitor") - precioTeclado;
+		int subtotalBase = 19 * precioTeclado;
+		assertTrue(diferenciaPrecio > 0);
+		int monitores = subtotalBase >= 1000000 ? 0
+				: (1000000 - subtotalBase + diferenciaPrecio - 1) / diferenciaPrecio;
+		assertTrue(monitores <= stocks.get("Monitor") && monitores <= 19);
+		int teclados = 19 - monitores;
+		assertTrue(teclados <= stocks.get("Teclado"));
+		assertTrue(teclados * precioTeclado + monitores * precios.get("Monitor") >= 1000000);
+		agregarCantidades(teclados, 0, monitores);
+	}
+
+	private void prepararCarritoNoElegible() {
+		assertTrue(stocks.get("Teclado") > 0 && precios.get("Teclado") < 1000000);
+		agregarCantidades(1, 0, 0);
 	}
 }

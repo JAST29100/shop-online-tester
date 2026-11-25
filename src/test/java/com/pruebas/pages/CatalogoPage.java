@@ -43,13 +43,13 @@ public class CatalogoPage {
 	public int obtenerExistencias(String nombre) {
 		WebElement articulo = producto(nombre);
 		String texto = articulo.findElement(By.xpath(".//p[contains(., 'Disponibles:')]/strong")).getText();
-		return Integer.parseInt(texto.replaceAll("[^0-9]", ""));
+		return numero(texto);
 	}
 
 	public int obtenerPrecioUnitario(String nombre) {
 		WebElement articulo = producto(nombre);
 		String texto = articulo.findElement(By.xpath(".//p[contains(., '$')]")).getText();
-		return Integer.parseInt(texto.replaceAll("[^0-9]", ""));
+		return numero(texto);
 	}
 
 	public String obtenerAviso() {
@@ -83,18 +83,19 @@ public class CatalogoPage {
 		new WebDriverWait(driver, 10).until(ExpectedConditions.visibilityOfAllElementsLocatedBy(productos));
 	}
 
-	public int[] obtenerCantidadYSubtotal(String nombre) {
+	public int obtenerCantidadFila(String nombre) {
 		irAlCarrito();
 		new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("main > div > div > section")));
-		List<WebElement> filas = driver.findElements(filasCarrito);
-		for (WebElement fila : filas) {
-			if (fila.findElement(By.cssSelector("h2")).getText().trim().equals(nombre)) {
-				int cantidad = Integer.parseInt(fila.findElement(By.cssSelector("input[type='number']")).getAttribute("value"));
-				String subtotal = fila.findElement(By.xpath(".//div[p[normalize-space()='Subtotal']]/p[2]")).getText();
-				return new int[] { cantidad, Integer.parseInt(subtotal.replaceAll("[^0-9]", "")) };
-			}
-		}
-		throw new AssertionError("No se encontro " + nombre + " en el carrito");
+		WebElement fila = filaCarrito(nombre);
+		return Integer.parseInt(fila.findElement(By.cssSelector("input[type='number']")).getAttribute("value"));
+	}
+
+	public int obtenerSubtotalFila(String nombre) {
+		irAlCarrito();
+		new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("main > div > div > section")));
+		WebElement fila = filaCarrito(nombre);
+		String texto = fila.findElement(By.xpath(".//div[p[normalize-space()='Subtotal']]/p[2]")).getText();
+		return numero(texto);
 	}
 
 	public void irAlCarrito() {
@@ -103,5 +104,18 @@ public class CatalogoPage {
 			new WebDriverWait(driver, 5).until(ExpectedConditions.urlContains("/cart"));
 		}
 		new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("main > div > div > section")));
+	}
+
+	private int numero(String texto) {
+		return Integer.parseInt(soloDigitos(texto));
+	}
+
+	private String soloDigitos(String texto) { return texto.replaceAll("[^0-9]", ""); }
+
+	private WebElement filaCarrito(String nombre) {
+		for (WebElement fila : driver.findElements(filasCarrito)) {
+			if (fila.findElement(By.cssSelector("h2")).getText().trim().equals(nombre)) return fila;
+		}
+		throw new AssertionError("No se encontro " + nombre + " en el carrito");
 	}
 }
