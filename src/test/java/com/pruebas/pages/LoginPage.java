@@ -3,16 +3,14 @@ package com.pruebas.pages;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
-public class LoginPage {
-    WebDriver driver;
-    
+public class LoginPage extends BasePage {    
     By cajaUser = By.id("username");
     By cajaPass = By.id("password");
     By msjError = By.cssSelector("[role='alert']");
     By btnLogin = By.cssSelector("[type='submit']");
 
     public LoginPage(WebDriver driver) {
-        this.driver = driver;
+        super(driver);
     }
     
     public void irALogin() {

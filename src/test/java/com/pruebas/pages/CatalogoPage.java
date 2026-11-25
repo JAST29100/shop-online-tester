@@ -5,49 +5,43 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
-public class CatalogoPage {
-	WebDriver driver;
-	
+public class CatalogoPage extends BasePage {
 	By productos = By.cssSelector("main > section article");
-	By filasCarrito = By.cssSelector("main > div > div > section article");
-	By aviso = By.cssSelector("p[role='status']");
+	By filasCarrito = By.cssSelector("main > div > div > section article");	By aviso = By.cssSelector("p[role='status']");
+	By tituloProducto = By.cssSelector("h4");
+	By tituloFilaCarrito = By.cssSelector("h2");
+	By campoCantidad = By.cssSelector("input[type='number']");
+	By botonAgregar = By.xpath(".//button[normalize-space()='Agregar al carrito']");
+	By botonEliminar = By.xpath(".//button[normalize-space()='Eliminar']");
+	By textoExistencias = By.xpath(".//p[contains(., 'Disponibles:')]/strong");
+	By textoPrecio = By.xpath(".//p[contains(., '$')]");
+	By textoSubtotalFila = By.xpath(".//div[p[normalize-space()='Subtotal']]/p[2]");
 
 	public CatalogoPage(WebDriver driver) {
-		this.driver = driver;
-	}
-
-	private WebElement producto(String nombre) {
-		wait(1);
-		List<WebElement> articulos = driver.findElements(productos);
-		for (WebElement articulo : articulos) {
-			if (articulo.findElement(By.cssSelector("h4")).getText().equals(nombre)) {
-				return articulo;
-			}
-		}
-		throw new AssertionError("No se encontro el producto: " + nombre);
+		super(driver);
 	}
 
 	public void ingresarCantidad(String nombre, String cantidad) {
-		WebElement input = producto(nombre).findElement(By.cssSelector("input[type='number']"));
+		WebElement input = producto(nombre).findElement(campoCantidad);
 		input.clear();
 		input.sendKeys(cantidad);
 	}
 
 	public void agregar(String nombre) {
-		producto(nombre).findElement(By.xpath(".//button[normalize-space()='Agregar al carrito']")).click();
+		producto(nombre).findElement(botonAgregar).click();
 		wait(1);
 	}
 
 	public int obtenerExistencias(String nombre) {
 		WebElement articulo = producto(nombre);
-		String texto = articulo.findElement(By.xpath(".//p[contains(., 'Disponibles:')]/strong")).getText();
-		return Integer.parseInt(soloDigitos(texto));
+		String texto = articulo.findElement(textoExistencias).getText();
+		return Integer.parseInt(texto.replaceAll("[^0-9]", ""));
 	}
 
 	public int obtenerPrecioUnitario(String nombre) {
 		WebElement articulo = producto(nombre);
-		String texto = articulo.findElement(By.xpath(".//p[contains(., '$')]")).getText();
-		return Integer.parseInt(soloDigitos(texto));
+		String texto = articulo.findElement(textoPrecio).getText();
+		return Integer.parseInt(texto.replaceAll("[^0-9]", ""));
 	}
 
 	public String obtenerAviso() {
@@ -67,50 +61,48 @@ public class CatalogoPage {
 	public void vaciarCarrito() {
 		irAlCarrito();
 		while (!driver.findElements(filasCarrito).isEmpty()) {
-			driver.findElement(filasCarrito).findElement(By.xpath(".//button[normalize-space()='Eliminar']")).click();
+			driver.findElement(filasCarrito).findElement(botonEliminar).click();
 			wait(1);
 		}
-	}
-
-	public void irAlCatalogo() {
-		if (!driver.getCurrentUrl().endsWith("/catalog")) {
-			driver.findElement(By.cssSelector("a[href='/catalog']")).click();
-			wait(2);
-		}
-		wait(1);
 	}
 
 	public int obtenerCantidadFila(String nombre) {
 		irAlCarrito();
 		WebElement fila = filaCarrito(nombre);
-		return Integer.parseInt(fila.findElement(By.cssSelector("input[type='number']")).getAttribute("value"));
+		return Integer.parseInt(fila.findElement(campoCantidad).getAttribute("value"));
 	}
 
 	public int obtenerSubtotalFila(String nombre) {
 		irAlCarrito();
 		WebElement fila = filaCarrito(nombre);
-		String texto = fila.findElement(By.xpath(".//div[p[normalize-space()='Subtotal']]/p[2]")).getText();
-		return Integer.parseInt(soloDigitos(texto));
+		String texto = fila.findElement(textoSubtotalFila).getText();
+		return Integer.parseInt(texto.replaceAll("[^0-9]", ""));
 	}
 
 	public void irAlCarrito() {
 		driver.get("https://shoponline-app.vercel.app/cart");
+		wait(1);
 	}
 
-	private void wait(int seconds) {
-		try {
-			Thread.sleep(seconds * 1000L);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
+	public void irAlCatalogo() {
+		driver.get("https://shoponline-app.vercel.app/catalog");
+		wait(1);
+	}
+
+	WebElement filaCarrito(String nombre) {
+		for (WebElement fila : driver.findElements(filasCarrito)) {
+			if (fila.findElement(tituloFilaCarrito).getText().trim().equals(nombre)) return fila;
 		}
+		return null;
 	}
 	
-	private String soloDigitos(String texto) { return texto.replaceAll("[^0-9]", ""); }
-
-	private WebElement filaCarrito(String nombre) {
-		for (WebElement fila : driver.findElements(filasCarrito)) {
-			if (fila.findElement(By.cssSelector("h2")).getText().trim().equals(nombre)) return fila;
+	WebElement producto(String nombre) {
+		List<WebElement> articulos = driver.findElements(productos);
+		for (WebElement articulo : articulos) {
+			if (articulo.findElement(tituloProducto).getText().equals(nombre)) {
+				return articulo;
+			}
 		}
-		throw new AssertionError("No se encontro " + nombre + " en el carrito");
+		return null;
 	}
 }

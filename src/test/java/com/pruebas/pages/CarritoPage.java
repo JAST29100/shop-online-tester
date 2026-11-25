@@ -6,27 +6,37 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
-public class CarritoPage {
-	WebDriver driver;
-	
+public class CarritoPage extends BasePage {
 	By filas = By.cssSelector("main > div > div > section article");
 	By alerta = By.cssSelector("div[role='alert']");
+	By tituloFila = By.cssSelector("h2");
+	By campoCantidad = By.cssSelector("input[type='number']");
+	By botonActualizar = By.xpath(".//button[normalize-space()='Actualizar']");
+	By botonEliminar = By.xpath(".//button[normalize-space()='Eliminar']");
+	By textoSubtotalFila = By.xpath(".//div[p[normalize-space()='Subtotal']]/p[2]");
+	By textoExistencias = By.xpath(".//p[contains(., 'Existencias:')]");
+	By textoPrecio = By.xpath(".//p[contains(., 'Precio unitario:')]");
+	By bloqueResumen = By.xpath("//aside//div[h2[normalize-space()='Resumen del pedido']]");
+	By botonConfirmar = By.xpath("//button[normalize-space()='Confirmar pedido']");
+	By enlacePedidos = By.cssSelector("a[href='/orders']");
+	By pedidos = By.cssSelector("main section article");
+	By textoTotalPedido = By.xpath(".//p[normalize-space()='Total del pedido']/following-sibling::p[1]");
 
 	public CarritoPage(WebDriver driver) {
-		this.driver = driver;
+		super(driver);
 	}
 
 	public void cambiarCantidad(String producto, String cantidad) {
-		WebElement fila = fila(producto);
-		WebElement input = fila.findElement(By.cssSelector("input[type='number']"));
+		WebElement articulo = fila(producto);
+		WebElement input = articulo.findElement(campoCantidad);
 		input.clear();
 		input.sendKeys(cantidad);
-		fila.findElement(By.xpath(".//button[normalize-space()='Actualizar']")).click();
+		articulo.findElement(botonActualizar).click();
 		wait(1);
 	}
 
 	public void eliminar(String producto) {
-		fila(producto).findElement(By.xpath(".//button[normalize-space()='Eliminar']")).click();
+		fila(producto).findElement(botonEliminar).click();
 		wait(1);
 	}
 
@@ -36,28 +46,25 @@ public class CarritoPage {
 	}
 
 	public int obtenerCantidadFila(String producto) {
-		return Integer.parseInt(fila(producto).findElement(By.cssSelector("input[type='number']")).getAttribute("value"));
+		return Integer.parseInt(fila(producto).findElement(campoCantidad).getAttribute("value"));
 	}
 
 	public int subtotalFila(String producto) {
-		String subtotal = fila(producto).findElement(By.xpath(".//div[p[normalize-space()='Subtotal']]/p[2]")).getText();
-		return numero(subtotal);
+		return numero(fila(producto).findElement(textoSubtotalFila).getText());
 	}
 
 	public int obtenerStock(String producto) {
-		String texto = fila(producto).findElement(By.xpath(".//p[contains(., 'Existencias:')]")).getText();
-		return numero(texto);
+		return numero(fila(producto).findElement(textoExistencias).getText());
 	}
 
 	public int obtenerPrecio(String producto) {
-		String texto = fila(producto).findElement(By.xpath(".//p[contains(., 'Precio unitario:')]")).getText();
-		return numero(texto);
+		return numero(fila(producto).findElement(textoPrecio).getText());
 	}
 
 	public List<String> nombresFilas() {
 		List<String> nombres = new ArrayList<String>();
 		for (WebElement articulo : driver.findElements(filas)) {
-			nombres.add(articulo.findElement(By.cssSelector("h2")).getText().trim());
+			nombres.add(articulo.findElement(tituloFila).getText().trim());
 		}
 		return nombres;
 	}
@@ -78,79 +85,62 @@ public class CarritoPage {
 		return valorResumen("Unidades");
 	}
 
-	public String textoVisible() { return driver.findElement(By.cssSelector("main")).getText(); }
-	public String textoVisibleNumerico() { return soloDigitos(textoVisible()); }
+	public String textoVisibleNumerico() {
+		return driver.findElement(By.cssSelector("main")).getText().replaceAll("[^0-9]", "");
+	}
 
 	public String textoBeneficio() {
-		List<WebElement> textos = bloqueResumen().findElements(By.cssSelector("p"));
-		StringBuilder resultado = new StringBuilder();
-		for (WebElement texto : textos) {
+		String resultado = "";
+		for (WebElement texto : driver.findElement(bloqueResumen).findElements(By.cssSelector("p"))) {
 			String contenido = texto.getText().trim();
-			if (contenido.toLowerCase().contains("descuento")) resultado.append(contenido).append(" ");
+			if (contenido.toLowerCase().contains("descuento")) resultado += contenido + " ";
 		}
-		return resultado.toString();
+		return resultado;
 	}
 
 	public boolean confirmarDisponible() {
-		List<WebElement> botones = driver.findElements(By.xpath("//button[normalize-space()='Confirmar pedido']"));
+		List<WebElement> botones = driver.findElements(botonConfirmar);
 		return !botones.isEmpty() && botones.get(0).isDisplayed() && botones.get(0).isEnabled();
 	}
 
 	public void confirmar() {
-		driver.findElement(By.xpath("//button[normalize-space()='Confirmar pedido']")).click();
-		wait(2);
+		driver.findElement(botonConfirmar).click();
+		wait(1);
 	}
 
-	public String url() { return driver.getCurrentUrl(); }
+	public String url() {
+		return driver.getCurrentUrl();
+	}
 
 	public void irPedidos() {
-		driver.findElement(By.cssSelector("a[href='/orders']")).click();
-		wait(2);
+		driver.findElement(enlacePedidos).click();
+		wait(1);
 	}
 
 	public int cantidadPedidos() {
-		return driver.findElements(By.cssSelector("main section article")).size();
+		return driver.findElements(pedidos).size();
 	}
 
 	public int totalUltimoPedido() {
-		java.util.List<WebElement> pedidos = driver.findElements(By.cssSelector("main section article"));
-		if (pedidos.isEmpty()) throw new AssertionError("No hay pedidos registrados");
-		WebElement ultimo = pedidos.get(0);
-		return numero(ultimo.findElement(By.xpath(".//p[normalize-space()='Total del pedido']/following-sibling::p[1]")).getText());
+		List<WebElement> lista = driver.findElements(pedidos);
+		if (lista.isEmpty()) return 0;
+		return numero(lista.get(0).findElement(textoTotalPedido).getText());
 	}
 
-	private int valorResumen(String etiqueta) {
-		WebElement valor = bloqueResumen().findElement(By.xpath(
-				".//div[span[normalize-space()='" + etiqueta + "']]/strong"));
-		return numero(valor.getText());
-	}
-
-	private WebElement bloqueResumen() {
-		return driver.findElement(By.xpath("//aside//div[h2[normalize-space()='Resumen del pedido']]"));
-	}
-
-	private WebElement fila(String nombre) {
-		WebElement encontrada = buscarFila(nombre);
-		if (encontrada == null) throw new AssertionError("No se encontro " + nombre + " en el carrito");
-		return encontrada;
-	}
-
-	private WebElement buscarFila(String nombre) {
+	WebElement fila(String nombre) {
 		for (WebElement articulo : driver.findElements(filas)) {
-			if (articulo.findElement(By.cssSelector("h2")).getText().trim().equals(nombre)) return articulo;
+			if (articulo.findElement(tituloFila).getText().trim().equals(nombre)) return articulo;
 		}
 		return null;
 	}
+	
+	int valorResumen(String etiqueta) {
+		WebElement valor = driver.findElement(bloqueResumen).findElement(
+				By.xpath(".//div[span[normalize-space()='" + etiqueta + "']]/strong"));
+		return numero(valor.getText());
+	}
 
-	private int numero(String texto) { return Integer.parseInt(soloDigitos(texto)); }
-
-	private String soloDigitos(String texto) { return texto.replaceAll("[^0-9]", ""); }
-
-	private void wait(int seconds) {
-		try {
-			Thread.sleep(seconds * 1000L);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		}
+	int numero(String texto) {
+		return Integer.parseInt(texto.replaceAll("[^0-9]", ""));
 	}
 }

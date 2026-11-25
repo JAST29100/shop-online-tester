@@ -1,4 +1,9 @@
 Feature: Validacion de cantidades en el catalogo de ShopOnline
+	Scenario: CP-025 - Rechazar el valor limite negativo
+		Given inicia sesion con "standard_user" y el carrito esta vacio
+		When agrega "-1" unidades de "Teclado" al carrito
+		Then el catalogo muestra el aviso "La cantidad debe ser un entero mayor que cero."
+		And el carrito permanece vacio
 	Scenario: CP-026 - Rechazar el valor limite cero
 		Given inicia sesion con "standard_user" y el carrito esta vacio
 		When agrega "0" unidades de "Teclado" al carrito

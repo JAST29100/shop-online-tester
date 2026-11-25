@@ -1,19 +1,16 @@
 Feature: Validacion del carrito de compras de ShopOnline
-
 	Scenario: CP-014 - Rechazar cantidad negativa al actualizar
 		Given inicia una sesion de carrito con "standard_user" y carrito vacio
 		Given el carrito tiene una unidad valida de "Teclado"
 		When cambia la cantidad de "Teclado" a "-1" y pulsa actualizar
 		Then el carrito muestra el error "La cantidad debe ser mayor que cero."
 		And conserva la cantidad y subtotal previos de "Teclado"
-
 	Scenario: CP-015 - Rechazar cantidad decimal al actualizar
 		Given inicia una sesion de carrito con "standard_user" y carrito vacio
 		Given el carrito tiene una unidad valida de "Teclado"
 		When cambia la cantidad de "Teclado" a "1.5" y pulsa actualizar
 		Then el carrito muestra el error "La cantidad debe ser un número entero."
 		And conserva la cantidad y subtotal previos de "Teclado"
-
 	Scenario: CP-016 - Rechazar cantidad superior al stock al actualizar
 		Given inicia una sesion de carrito con "standard_user" y carrito vacio
 		Given el carrito tiene una unidad valida de "Teclado"
